@@ -209,7 +209,8 @@ func TestFailures(t *testing.T) {
 	err = cfg3.Fetch(false, true)
 	check(t, err)
 	err = cfg3.Process()
-	checkInverse(t, err)
+	assertEqual(t, cfg3.Properties["date"], "${test.date}")
+	assertEqual(t, cfg3.Properties["bill-to.given"], "${test.Name}")
 
 }
 
