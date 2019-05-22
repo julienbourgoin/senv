@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/jamowei/senv"
+	"github.com/julienbourgoin/senv"
 	"github.com/spf13/cobra"
 	"os"
 	"os/exec"
@@ -18,8 +18,9 @@ var version = "0.0.0"
 var date = "2018"
 
 var (
-	host, port, name, label          string
-	profiles                         []string
+	host, port, name, label			string
+	username, password				string
+	profiles						[]string
 	noSysEnv, json, verbose, content bool
 )
 
@@ -64,6 +65,9 @@ Example call:
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := senv.NewConfig(host, port, name, profiles, label)
+		if(len(username) > 0 && len(password) > 0) {
+			cfg.SetBasicAuth(username, password)
+		}
 		if err := cfg.Fetch(json, verbose); err != nil {
 			return err
 		}
@@ -153,6 +157,8 @@ func init() {
 	fileCmd.PersistentFlags().BoolVarP(&content, "content", "c", false, "print file to stdout")
 	rootCmd.PersistentFlags().StringVar(&host, "host", hostDefault, "configserver host")
 	rootCmd.PersistentFlags().StringVar(&port, "port", portDefault, "configserver port")
+	rootCmd.PersistentFlags().StringVar(&username, "username", "", "username")
+	rootCmd.PersistentFlags().StringVar(&password, "password", "", "password")
 	rootCmd.PersistentFlags().StringVarP(&name, "name", "n", nameDefault, "spring.application.name")
 	rootCmd.PersistentFlags().StringSliceVarP(&profiles, "profiles", "p", profileDefault, "spring.active.profiles")
 	rootCmd.PersistentFlags().StringVarP(&label, "label", "l", labelDefault, "config-repo label to be used")

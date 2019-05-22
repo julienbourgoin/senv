@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"errors"
 )
 
 // Replacer replaces all variables given in the first string
@@ -17,13 +18,39 @@ type Replacer interface {
 	Replace(str string, m map[string]string) (string, error)
 }
 
+
+type AuthType int
+
+const (
+	Basic    AuthType = 0
+	Bearer    AuthType = 1
+ )
+
+type Authentication struct {
+	Type AuthType
+	Username, Password string
+	Token string
+}
+
+func (auth *Authentication) SetAuth(req *http.Request) error {
+	if(auth.Type == Basic) {
+		req.SetBasicAuth(auth.Username, auth.Password)
+	} else {
+		return errors.New("AuthType Not yet implemented")
+	}
+	return nil
+}
+
+
 // Config hold the information which is needed to receive the
 // json data from the spring config server and parse and transform them correctly.
 type Config struct {
 	Host, Port, Name, Profile, Label string
+
 	Replacer                         Replacer
 	environment                      *environment
 	Properties                       map[string]string
+	Auth                             *Authentication
 }
 
 // NewConfig returns a new Config as pointer value with a default Replacer for
@@ -31,7 +58,15 @@ type Config struct {
 func NewConfig(host string, port string, name string, profiles []string, label string) *Config {
 	return &Config{host, port, name, strings.Join(profiles, ","), label,
 		&SpringReplacer{"${", "}", ":"},
-		nil, nil}
+		nil, nil, nil}
+}
+
+func (cfg *Config) SetBasicAuth(username, password string) error {
+	cfg.Auth = &Authentication{Basic, username, password, ""}
+	if(len(username) == 0 || len(password) == 0) {
+		return errors.New("AuthType Basic must come with username and password")
+	}
+	return nil
 }
 
 // Fetch fetches the json data from the spring config server, see:
@@ -44,9 +79,19 @@ func (cfg *Config) Fetch(showJson bool, verbose bool) error {
 		fmt.Fprintln(os.Stderr, "Fetching config from server at:", url)
 	}
 
-	resp, err := http.Get(url)
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if(cfg.Auth != nil) {
+		cfg.Auth.SetAuth(req)
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
+	}
+	switch resp.StatusCode {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return errors.New(fmt.Sprintf("Fetching config from server returned a %d http error code, consider provide a username and password", resp.StatusCode))
 	}
 	defer resp.Body.Close()
 
@@ -121,8 +166,10 @@ func (cfg *Config) Process() error {
 					return err
 				}
 				replacedProperties[key] = nVal
+				fmt.Println(key + ": "+ nVal)
 			}
 			cfg.Properties = replacedProperties
+			
 		}
 	}
 	return nil
@@ -154,11 +201,14 @@ type SpringReplacer struct {
 // closing strings with and default separator the value of the
 // key or when available with the default value.
 func (rpl *SpringReplacer) Replace(str string, m map[string]string) (string, error) {
+	var result string
+	var remain = str
 	var f, s int
-	f = strings.Index(str, rpl.Opener) + len(rpl.Opener)
+	f = strings.Index(remain, rpl.Opener) + len(rpl.Opener)
 	for f-len(rpl.Opener) > -1 {
-		s = f + strings.Index(str[f:], rpl.Closer)
-		key := str[f:s]
+		s = f + strings.Index(remain[f:], rpl.Closer)
+		key := remain[f:s]
+//		fmt.Println("Replace "+ key+ " in "+remain)
 		var val string
 		var ok, def bool
 		i := strings.Index(key, rpl.Default)
@@ -172,11 +222,30 @@ func (rpl *SpringReplacer) Replace(str string, m map[string]string) (string, err
 			if def {
 				val = key[i+1:]
 			} else {
-				return str, fmt.Errorf("cannot find value for key %s in \"%s\"", key, str)
+				fmt.Println(fmt.Sprintf("cannot find value for key %s in \"%s\"", key, str))
+				//return str, fmt.Errorf("cannot find value for key %s in \"%s\"", key, str)
+				val = rpl.Opener + key + rpl.Closer
+			}
+		} else {
+			// If the value needs some replacements too
+			if(strings.Contains(val, rpl.Opener)) {
+//				fmt.Println("RECURSION : "+ val)
+				nVal, _ := rpl.Replace(val, m)
+//				fmt.Println("RECURSION nVal : "+ nVal)
+				val = nVal
 			}
 		}
-		str = str[:f-len(rpl.Opener)] + val + str[s+len(rpl.Closer):]
-		f = strings.Index(str, rpl.Opener) + len(rpl.Opener)
+		result = result + remain[:f-len(rpl.Opener)] + val
+//		fmt.Println("result : "+ result)
+		remain = remain[s+len(rpl.Closer):]
+//		fmt.Println("remain : "+ remain)
+		f = strings.Index(remain, rpl.Opener) + len(rpl.Opener)
 	}
-	return str, nil
+	if(len(result) == 0){
+		result = str
+	} else {
+		result = result + remain
+	}
+//	fmt.Println("fin Replace : "+ result)
+	return result, nil
 }
