@@ -208,7 +208,6 @@ func (rpl *SpringReplacer) Replace(str string, m map[string]string) (string, err
 	for f-len(rpl.Opener) > -1 {
 		s = f + strings.Index(remain[f:], rpl.Closer)
 		key := remain[f:s]
-//		fmt.Println("Replace "+ key+ " in "+remain)
 		var val string
 		var ok, def bool
 		i := strings.Index(key, rpl.Default)
@@ -223,22 +222,17 @@ func (rpl *SpringReplacer) Replace(str string, m map[string]string) (string, err
 				val = key[i+1:]
 			} else {
 				fmt.Println(fmt.Sprintf("cannot find value for key %s in \"%s\"", key, str))
-				//return str, fmt.Errorf("cannot find value for key %s in \"%s\"", key, str)
 				val = rpl.Opener + key + rpl.Closer
 			}
 		} else {
 			// If the value needs some replacements too
 			if(strings.Contains(val, rpl.Opener)) {
-//				fmt.Println("RECURSION : "+ val)
 				nVal, _ := rpl.Replace(val, m)
-//				fmt.Println("RECURSION nVal : "+ nVal)
 				val = nVal
 			}
 		}
 		result = result + remain[:f-len(rpl.Opener)] + val
-//		fmt.Println("result : "+ result)
 		remain = remain[s+len(rpl.Closer):]
-//		fmt.Println("remain : "+ remain)
 		f = strings.Index(remain, rpl.Opener) + len(rpl.Opener)
 	}
 	if(len(result) == 0){
@@ -246,6 +240,5 @@ func (rpl *SpringReplacer) Replace(str string, m map[string]string) (string, err
 	} else {
 		result = result + remain
 	}
-//	fmt.Println("fin Replace : "+ result)
 	return result, nil
 }
