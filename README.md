@@ -1,9 +1,9 @@
 # Senv
 
-[![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](https://github.com/jamowei/senv/blob/master/LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/jamowei/senv)](https://goreportcard.com/report/github.com/jamowei/senv)
-[![Build Status](https://travis-ci.org/jamowei/senv.svg?branch=master)](https://travis-ci.org/jamowei/senv)
-[![Coverage Status](https://coveralls.io/repos/github/jamowei/senv/badge.svg?branch=master)](https://coveralls.io/github/jamowei/senv?branch=master)
+[![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](https://github.com/julienbourgoin/senv/blob/master/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/julienbourgoin/senv)](https://goreportcard.com/report/github.com/julienbourgoin/senv)
+[![Build Status](https://travis-ci.org/julienbourgoin/senv.svg?branch=master)](https://travis-ci.org/julienbourgoin/senv)
+[![Coverage Status](https://coveralls.io/repos/github/julienbourgoin/senv/badge.svg?branch=master)](https://coveralls.io/github/julienbourgoin/senv?branch=master)
 
 A fast Spring cloud-config-client written in Go.
  
@@ -15,9 +15,9 @@ For more information on spring cloud config take a look [here](https://cloud.spr
 
 You can get the latest binary using Go:
 
-`> go get -u github.com/jamowei/senv/senv`
+`> go get -u github.com/julienbourgoin/senv/senv`
 
-or download released binary from [here](https://github.com/jamowei/senv/releases/latest).
+or download released binary from [here](https://github.com/julienbourgoin/senv/releases/latest).
 
 # Example
 
@@ -138,4 +138,4 @@ then you can start your application *myapp* like the following:
 
 # License
 
-Senv is released under the MIT license. See [LICENSE](https://github.com/jamowei/senv/blob/master/LICENSE)
+Senv is released under the MIT license. See [LICENSE](https://github.com/julienbourgoin/senv/blob/master/LICENSE)

@@ -3,12 +3,12 @@ package senv
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
-	"errors"
 )
 
 // Replacer replaces all variables given in the first string
@@ -18,22 +18,21 @@ type Replacer interface {
 	Replace(str string, m map[string]string) (string, error)
 }
 
-
 type AuthType int
 
 const (
-	Basic    AuthType = 0
-	Bearer    AuthType = 1
- )
+	Basic  AuthType = 0
+	Bearer AuthType = 1
+)
 
 type Authentication struct {
-	Type AuthType
+	Type               AuthType
 	Username, Password string
-	Token string
+	Token              string
 }
 
 func (auth *Authentication) SetAuth(req *http.Request) error {
-	if(auth.Type == Basic) {
+	if auth.Type == Basic {
 		req.SetBasicAuth(auth.Username, auth.Password)
 	} else {
 		return errors.New("AuthType Not yet implemented")
@@ -41,29 +40,27 @@ func (auth *Authentication) SetAuth(req *http.Request) error {
 	return nil
 }
 
-
 // Config hold the information which is needed to receive the
 // json data from the spring config server and parse and transform them correctly.
 type Config struct {
-	Host, Port, Name, Profile, Label string
-
-	Replacer                         Replacer
-	environment                      *environment
-	Properties                       map[string]string
-	Auth                             *Authentication
+	Url, Name, Profile, Label string
+	Replacer                  Replacer
+	environment               *environment
+	Properties                map[string]string
+	Auth                      *Authentication
 }
 
 // NewConfig returns a new Config as pointer value with a default Replacer for
 // spring cloud config.
-func NewConfig(host string, port string, name string, profiles []string, label string) *Config {
-	return &Config{host, port, name, strings.Join(profiles, ","), label,
+func NewConfig(url string, name string, profiles []string, label string) *Config {
+	return &Config{url, name, strings.Join(profiles, ","), label,
 		&SpringReplacer{"${", "}", ":"},
 		nil, nil, nil}
 }
 
 func (cfg *Config) SetBasicAuth(username, password string) error {
 	cfg.Auth = &Authentication{Basic, username, password, ""}
-	if(len(username) == 0 || len(password) == 0) {
+	if len(username) == 0 || len(password) == 0 {
 		return errors.New("AuthType Basic must come with username and password")
 	}
 	return nil
@@ -73,7 +70,7 @@ func (cfg *Config) SetBasicAuth(username, password string) error {
 // https://cloud.spring.io/spring-cloud-config/single/spring-cloud-config.html#_quick_start
 func (cfg *Config) Fetch(showJson bool, verbose bool) error {
 	env := &environment{}
-	url := fmt.Sprintf("http://%s:%s/%s/%s/%s", cfg.Host, cfg.Port, cfg.Name, cfg.Profile, cfg.Label)
+	url := fmt.Sprintf("%s/%s/%s/%s", cfg.Url, cfg.Name, cfg.Profile, cfg.Label)
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, "Fetching config from server at:", url)
@@ -81,7 +78,7 @@ func (cfg *Config) Fetch(showJson bool, verbose bool) error {
 
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
-	if(cfg.Auth != nil) {
+	if cfg.Auth != nil {
 		cfg.Auth.SetAuth(req)
 	}
 
@@ -117,15 +114,25 @@ func (cfg *Config) Fetch(showJson bool, verbose bool) error {
 // FetchFile download a file from the spring config server, see:
 // https://cloud.spring.io/spring-cloud-config/single/spring-cloud-config.html#_serving_plain_text
 func (cfg *Config) FetchFile(filename string, printFile bool, verbose bool) error {
-	url := fmt.Sprintf("http://%s:%s/%s/%s/%s/%s", cfg.Host, cfg.Port, cfg.Name, cfg.Profile, cfg.Label, filename)
+	url := fmt.Sprintf("%s/%s/%s/%s/%s", cfg.Url, cfg.Name, cfg.Profile, cfg.Label, filename)
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "Fetching file \"%s\" from server at: %s\n", filename, url)
 	}
 
-	resp, err := http.Get(url)
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if cfg.Auth != nil {
+		cfg.Auth.SetAuth(req)
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
+	}
+	switch resp.StatusCode {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return errors.New(fmt.Sprintf("Fetching file from server returned a %d http error code, consider provide a username and password", resp.StatusCode))
 	}
 	defer resp.Body.Close()
 
@@ -166,10 +173,10 @@ func (cfg *Config) Process() error {
 					return err
 				}
 				replacedProperties[key] = nVal
-				fmt.Println(key + ": "+ nVal)
+				fmt.Println(key + ": " + nVal)
 			}
 			cfg.Properties = replacedProperties
-			
+
 		}
 	}
 	return nil
@@ -192,9 +199,9 @@ func mergeProps(pSources []propertySource) (merged map[string]string) {
 // SpringReplacer needs the opening and closing string
 // for detecting a variables that must be replaced.
 type SpringReplacer struct {
-	Opener      string
-	Closer      string
-	Default		string
+	Opener  string
+	Closer  string
+	Default string
 }
 
 // Replace replaces all variables with the defined opening and
@@ -226,7 +233,7 @@ func (rpl *SpringReplacer) Replace(str string, m map[string]string) (string, err
 			}
 		} else {
 			// If the value needs some replacements too
-			if(strings.Contains(val, rpl.Opener)) {
+			if strings.Contains(val, rpl.Opener) {
 				nVal, _ := rpl.Replace(val, m)
 				val = nVal
 			}
@@ -235,7 +242,7 @@ func (rpl *SpringReplacer) Replace(str string, m map[string]string) (string, err
 		remain = remain[s+len(rpl.Closer):]
 		f = strings.Index(remain, rpl.Opener) + len(rpl.Opener)
 	}
-	if(len(result) == 0){
+	if len(result) == 0 {
 		result = str
 	} else {
 		result = result + remain
