@@ -13,14 +13,13 @@ import (
 )
 
 const (
-	host      = "127.0.0.1"
-	port      = "9999"
-	wrongport = "8888"
-	name      = "test"
-	badjson   = "badjson"
-	badprops  = "badprops"
-	file      = "test.txt"
-	label     = "master"
+	url      = "http://127.0.0.1:9999/"
+	wrongurl = "http://127.0.0.1:8888/"
+	name     = "test"
+	badjson  = "badjson"
+	badprops = "badprops"
+	file     = "test.txt"
+	label    = "master"
 )
 
 var profiles = []string{"dev", "prod"}
@@ -112,7 +111,7 @@ func startServer() {
 	if running == false {
 		running = true
 
-		server = &http.Server{Addr: ":" + port}
+		server = &http.Server{Addr: ":" + "9999"}
 
 		http.HandleFunc(fmt.Sprintf("/%s/%s/%s", name, strings.Join(profiles, ","), label), func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -157,7 +156,7 @@ func TestConfig(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	conf := NewConfig(host, port, name, profiles, label)
+	conf := NewConfig(url, name, profiles, label)
 
 	err := conf.Fetch(true, true)
 	check(t, err)
@@ -193,9 +192,9 @@ func TestFailures(t *testing.T) {
 	defer stopServer()
 	time.Sleep(1 * time.Second)
 
-	cfg1 := NewConfig(host, port, badjson, profiles, label)
-	cfg2 := NewConfig(host, wrongport, name, profiles, label)
-	cfg3 := NewConfig(host, port, badprops, profiles, label)
+	cfg1 := NewConfig(url, badjson, profiles, label)
+	cfg2 := NewConfig(wrongurl, name, profiles, label)
+	cfg3 := NewConfig(url, badprops, profiles, label)
 
 	err := cfg1.Fetch(false, true)
 	checkInverse(t, err)
